@@ -59,7 +59,7 @@ python -m venv venv
 
 # Install dependencies
 pip install -r requirements.txt
-
+```
 ### 2. Install Extension
 * Open Chrome and navigate to `chrome://extensions/`.
 * Enable **Developer mode** (toggle in the top right corner).
