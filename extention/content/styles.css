@@ -1,0 +1,8 @@
+/* This will highlight the 'Revealed' text when you hit the button in the popup */
+.privacy-revealed-text {
+    color: #34a853 !important;
+    font-weight: bold !important;
+    background-color: rgba(52, 168, 83, 0.1);
+    border-radius: 4px;
+    padding: 0 2px;
+}

@@ -1,0 +1,13 @@
+# Web Framework
+fastapi==0.109.0
+uvicorn==0.27.0
+python-multipart==0.0.6
+
+# AI & NLP Logic
+transformers==4.37.2
+torch==2.2.0
+sentencepiece==0.1.99
+
+# Utilities
+re-project==0.1.0
+pydantic==2.6.0

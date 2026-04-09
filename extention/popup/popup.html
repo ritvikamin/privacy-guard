@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Guard</title>
+    <link rel="stylesheet" href="popup.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="brand">
+                <div class="icon-bg">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34a853" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                </div>
+                <div class="title-group">
+                    <h1>Privacy Guard</h1>
+                    <p class="subtitle">PII PROTECTION ACTIVE</p>
+                </div>
+            </div>
+            <div class="status-toggle">
+                <span id="backend-check">OFFLINE</span>
+                <label class="switch">
+                    <input type="checkbox" id="powerToggle" checked>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h2 id="entityCount">0</h2>
+                <p>REDACTED</p>
+            </div>
+            <div class="stat-card">
+                <h2>9</h2>
+                <p>PII TYPES</p>
+            </div>
+            <div class="stat-card">
+                <h2 id="vaultCount">0</h2>
+                <p>IN VAULT</p>
+            </div>
+        </div>
+
+        <div class="breakdown-section">
+            <h3>BREAKDOWN BY TYPE</h3>
+            <div id="breakdown-list" class="empty-state">
+                No PII detected yet in this session
+            </div>
+        </div>
+
+        <div class="actions">
+            <div class="toggle-row">
+                <button id="revealBtn" class="btn secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    Reveal All
+                </button>
+                <button id="hideBtn" class="btn secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                    Hide All
+                </button>
+            </div>
+            <button id="clearBtn" class="btn danger">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                Clear Session Vault
+            </button>
+        </div>
+
+        <div class="footer">
+            <p>● Monitoring Gemini · ChatGPT</p>
+            <span class="badge">NLP: BERT + Regex</span>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
