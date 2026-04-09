@@ -1,4 +1,4 @@
-## 🚦 Getting Started
+## Getting Started
 
 ### 1. Setup Backend (The Engine)
 It is highly recommended to use a virtual environment to keep dependencies isolated.
