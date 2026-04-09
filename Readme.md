@@ -60,5 +60,16 @@ python -m venv venv
 # Install dependencies
 pip install -r requirements.txt
 
+### 2. Install Extension
+* Open Chrome and navigate to `chrome://extensions/`.
+* Enable **Developer mode** (toggle in the top right corner).
+* Click **Load unpacked** and select the `extension/` folder from this repository.
+* **Critical Step:** Once your FastAPI server is running, go back to the extensions page and click the **Reload icon (↻)** on the Privacy Guard card. This ensures the extension connects to the local backend properly.
+
+### 3. Usage & Activation
+* Navigate to [ChatGPT](https://chatgpt.com) or [Gemini](https://gemini.google.com).
+* **Refresh the page (F5):** The extension needs a fresh page load to inject the interceptor scripts into the chat interface.
+* Start typing! Any detected PII will be redacted before it leaves your browser. Check the extension popup to see your **Session Vault** in action.
+
 # Start the FastAPI server
 uvicorn main:app --reload
