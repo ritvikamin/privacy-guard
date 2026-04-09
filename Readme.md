@@ -1,3 +1,5 @@
+![Privacy Guard Dashboard Demo](demo.png)
+
 ## Getting Started
 
 ### 1. Setup Backend (The Engine)
