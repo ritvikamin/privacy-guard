@@ -1,4 +1,8 @@
-![Privacy Guard Dashboard Demo](demo.png)
+<h1 align="center">🛡️ Privacy Guard</h1>
+
+<p align="center">
+  <img src="demo.png" alt="Privacy Guard Dashboard" width="500">
+</p>
 
 ## Getting Started
 
