@@ -10,10 +10,10 @@
 
 ---
 
-## 🚀 The Mission
+## The Mission
 Users frequently share sensitive data like API keys, Government IDs, and personal names with AI models. **Privacy Guard** acts as a stealthy "Privacy Layer" that intercepts your prompt, redacts sensitive information locally, and sends a sanitized version to the LLM.
 
-## 🧠 How It Works
+## How It Works
 Privacy Guard uses a **Client-Sidecar** architecture to ensure your data stays on your machine during the de-identification process.
 
 1.  **Interception:** The Chrome Extension watches for input events on `chatgpt.com` and `gemini.google.com`.
@@ -25,7 +25,7 @@ Privacy Guard uses a **Client-Sidecar** architecture to ensure your data stays o
 
 ---
 
-## 🎭 Before & After
+## Before & After
 
 | PII Category | Original Input | Anonymized Output (To LLM) |
 | :--- | :--- | :--- |
@@ -36,7 +36,7 @@ Privacy Guard uses a **Client-Sidecar** architecture to ensure your data stays o
 
 ---
 
-## 🛠️ Supported PII Types
+## Supported PII Types
 The engine currently supports **9 core categories**:
 * **Identity:** Person Names, Locations, Email Addresses, Phone Numbers.
 * **Finance/Gov:** Indian Aadhaar Cards, PAN Cards.
@@ -44,7 +44,7 @@ The engine currently supports **9 core categories**:
 
 ---
 
-## 🚦 Getting Started
+## Getting Started
 
 ### 1. Setup Backend (The Engine)
 It is highly recommended to use a virtual environment to keep dependencies isolated.
