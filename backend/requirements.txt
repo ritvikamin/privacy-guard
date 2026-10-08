@@ -9,5 +9,5 @@ torch==2.2.0
 sentencepiece==0.1.99
 
 # Utilities
-re-project==0.1.0
+numpy<2  # torch 2.2.0 was built against NumPy 1.x
 pydantic==2.6.0
