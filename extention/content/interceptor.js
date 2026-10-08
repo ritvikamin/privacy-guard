@@ -1,16 +1,48 @@
 /**
  * Privacy Guard: Interceptor Script
- * Optimized for state synchronization and newline preservation.
+ *
+ * Catches BOTH ways of sending a prompt:
+ *   1. pressing Enter in the chat box
+ *   2. clicking the site's Send button
+ * Then redacts the text (via background.js -> local server) and sends the clean version.
  */
 
-let isPausedLocal = false;
+// ---------------------------------------------------------------------------
+// Per-site config: the ONLY place that knows how each site's page is built.
+// If a site changes its layout, edit the selectors here. To support a new site,
+// add one entry here (and its URL to manifest.json).
+// An empty `input` list is fine: the chat box is then found structurally, from the
+// Send button's own form, which does not depend on any ID the site could rename.
+// ---------------------------------------------------------------------------
+const SITES = {
+    "chatgpt.com": {
+        input: [],   // no verified selector yet: the box is found structurally (see findPromptBox)
+        sendButton: ['button[data-testid="send-button"]', 'button[aria-label*="Send"]']
+    },
+    "gemini.google.com": {
+        input: ['rich-textarea .ql-editor', '.ql-editor'],
+        sendButton: ['button[aria-label*="Send"]', 'button.send-button']
+    }
+};
 
-// 1. Initial State Sync
+const SITE = SITES[location.hostname] || { input: [], sendButton: [] };
+const INPUT_SELECTOR = SITE.input.join(', ');
+const SEND_SELECTOR = SITE.sendButton.join(', ');
+
+const PLACEHOLDER = "Processing Privacy...";
+const DEFAULT_COUNTS = {
+    "PERSON": 0, "LOCATION": 0, "EMAIL_ADDRESS": 0, "PHONE_NUMBER": 0,
+    "PAN_CARD": 0, "IN_AADHAAR": 0, "URI_RESOURCE": 0, "SECRET_TOKEN": 0, "IP_ADDRESS": 0
+};
+
+let isPausedLocal = false;   // popup toggle
+let busy = false;            // a redaction is already in progress
+let bypassGuard = false;     // true only while WE click Send, so we don't intercept ourselves
+
+// 1. Pause state: initial sync + live updates from the popup
 chrome.storage.local.get(['isPaused'], (data) => {
     isPausedLocal = data.isPaused || false;
 });
-
-// 2. Real-time Sync
 chrome.storage.onChanged.addListener((changes) => {
     if (changes.isPaused) {
         isPausedLocal = changes.isPaused.newValue;
@@ -18,99 +50,161 @@ chrome.storage.onChanged.addListener((changes) => {
     }
 });
 
-/**
- * Global Event Listener (Capture Phase)
- */
-document.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-        
-        if (isPausedLocal) return;
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-        const activeElem = document.activeElement;
-        const isInput = activeElem.isContentEditable || 
-                        activeElem.tagName === 'TEXTAREA' || 
-                        activeElem.getAttribute('role') === 'textbox';
+/** Returns the prompt box element for `el`, or null if `el` isn't the chat box. */
+function getPromptBox(el) {
+    if (!el || !el.closest) return null;
+    // Normal case: the site config matches something on the page, so be precise.
+    if (INPUT_SELECTOR && document.querySelector(INPUT_SELECTOR)) {
+        return el.closest(INPUT_SELECTOR);
+    }
+    // Config is stale or the site is unknown: fall back to "any editable box".
+    const editable = el.isContentEditable || el.tagName === 'TEXTAREA' || el.getAttribute('role') === 'textbox';
+    return editable ? el : null;
+}
 
-        if (activeElem && isInput) {
-            // Check for Gemini or ChatGPT input areas
-            const isLLMInput = activeElem.placeholder?.toLowerCase().includes("prompt") || 
-                               activeElem.closest('[contenteditable="true"]') ||
-                               window.location.hostname.includes("chatgpt.com");
-
-            if (isLLMInput) {
-                // BLOCK NATIVE SEND
-                event.stopImmediatePropagation();
-                event.preventDefault();
-                
-                processAndSend(activeElem);
-            }
-        }
+/** Remembers the last editable box the user focused (a mouse click on Send moves focus away). */
+let lastEditable = null;
+document.addEventListener('focusin', (e) => {
+    const t = e.target;
+    if (t && t.getAttribute && (t.isContentEditable || t.tagName === 'TEXTAREA' || t.getAttribute('role') === 'textbox')) {
+        lastEditable = t;
     }
 }, true);
 
-async function processAndSend(inputBox) {
-    // 1. CAPTURE: innerText is best for getting multiline strings from contenteditables
-    let rawText = (inputBox.tagName === 'TEXTAREA' ? inputBox.value : inputBox.innerText)
-                   .replace(/\u00a0/g, " ")
-                   .normalize("NFC")
-                   .trim();
+/**
+ * Finds the chat box when the user clicked Send with the mouse. Tries, in order:
+ *   1. the site config selector
+ *   2. the editable box inside the same <form>/composer as the Send button (structural, survives ID renames)
+ *   3. the last editable box the user focused
+ *   4. the currently focused element
+ */
+function findPromptBox(fromButton) {
+    if (INPUT_SELECTOR) {
+        const el = document.querySelector(INPUT_SELECTOR);
+        if (el) return el;
+    }
+    const form = fromButton && fromButton.closest ? fromButton.closest('form') : null;
+    if (form) {
+        const el = form.querySelector('[contenteditable="true"]') || form.querySelector('textarea') || form.querySelector('[role="textbox"]');
+        if (el) return el;
+    }
+    if (lastEditable && lastEditable.isConnected) return lastEditable;
+    return getPromptBox(document.activeElement);
+}
 
-    if (!rawText || rawText === "Processing Privacy...") return;
+/** Reads the prompt text. innerText keeps line breaks for rich editors. */
+function readText(box) {
+    return (box.tagName === 'TEXTAREA' ? box.value : box.innerText)
+        .replace(/ /g, " ")
+        .normalize("NFC")
+        .trim();
+}
 
-    // 2. STATUS FEEDBACK: Use execCommand to "type" the status
-    // This clears the box and tells the site "something changed"
-    inputBox.focus();
+/** Writes text the way real typing would, so the site's editor updates its internal state. */
+function setText(box, text) {
+    box.focus();
     document.execCommand('selectAll', false, null);
-    document.execCommand('insertText', false, "Processing Privacy...");
+    document.execCommand('insertText', false, text);
+}
+
+/** Waits until the site's Send button exists and is enabled, then clicks it. */
+function clickSendWhenReady(timeoutMs = 3000) {
+    return new Promise((resolve) => {
+        const started = Date.now();
+        const timer = setInterval(() => {
+            const btn = SEND_SELECTOR ? document.querySelector(SEND_SELECTOR) : null;
+            const ready = btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true';
+            if (ready) {
+                clearInterval(timer);
+                bypassGuard = true;            // let our own click through
+                try { btn.click(); } finally { bypassGuard = false; }
+                console.log("Privacy Guard: Redacted message sent.");
+                resolve(true);
+            } else if (Date.now() - started > timeoutMs) {
+                clearInterval(timer);
+                console.warn("Privacy Guard: Send button not found. The redacted text is in the box; press Send.");
+                resolve(false);
+            }
+        }, 50);
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Entry point 1: Enter key (capture phase = we run before the site's own handlers)
+// ---------------------------------------------------------------------------
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+    if (bypassGuard || isPausedLocal) return;
+
+    const box = getPromptBox(document.activeElement);
+    if (!box) return;
+
+    event.stopImmediatePropagation();
+    event.preventDefault();
+    processAndSend(box);
+}, true);
+
+// ---------------------------------------------------------------------------
+// Entry point 2: Send button click (this was the leak: only Enter was caught before)
+// ---------------------------------------------------------------------------
+document.addEventListener('click', (event) => {
+    if (bypassGuard || isPausedLocal) return;
+
+    const clicked = event.target && event.target.closest ? event.target.closest(SEND_SELECTOR || 'x-none') : null;
+    if (!clicked) return;
+
+    const box = findPromptBox(clicked);
+    if (!box || !readText(box)) return;   // nothing typed, nothing to protect
+
+    event.stopImmediatePropagation();
+    event.preventDefault();
+    processAndSend(box);
+}, true);
+
+// ---------------------------------------------------------------------------
+// The redaction pipeline (shared by both entry points)
+// ---------------------------------------------------------------------------
+function processAndSend(inputBox) {
+    if (busy) return;
+
+    const rawText = readText(inputBox);
+    if (!rawText || rawText === PLACEHOLDER) return;
+
+    busy = true;
+    setText(inputBox, PLACEHOLDER);   // visible feedback
 
     chrome.storage.local.get(['globalVault', 'currentCounts'], (store) => {
         const vault = store.globalVault || {};
-        const counts = store.currentCounts || {
-            "PERSON": 0, "LOCATION": 0, "EMAIL_ADDRESS": 0,
-            "PHONE_NUMBER": 0, "PAN_CARD": 0, "IN_AADHAAR": 0,
-            "URI_RESOURCE": 0, "SECRET_TOKEN": 0
-        };
+        const counts = store.currentCounts || { ...DEFAULT_COUNTS };
 
-        // 3. Send to Background -> Backend
-        chrome.runtime.sendMessage({ 
-            type: "REDACT_TEXT", 
-            text: rawText, 
+        chrome.runtime.sendMessage({
+            type: "REDACT_TEXT",
+            text: rawText,
             counts: counts,
-            vault: vault 
+            vault: vault
         }, (response) => {
-            if (response && response.success && response.data) {
-                const result = response.data; 
+            void chrome.runtime.lastError;   // mark as handled (e.g. extension was reloaded)
 
+            if (response && response.success && response.data) {
+                const result = response.data;
                 chrome.storage.local.set({
                     globalVault: result.vault,
                     currentCounts: result.updated_counts
-                }, () => {
-                    // 4. THE FIX: Focus and "Type" the redacted text
-                    // This preserves newlines perfectly and doesn't break Gemini's UI
-                    inputBox.focus();
-                    document.execCommand('selectAll', false, null);
-                    document.execCommand('insertText', false, result.redacted);
-
-                    // Force the site to recognize the change
+                }, async () => {
+                    setText(inputBox, result.redacted);
                     inputBox.dispatchEvent(new Event('input', { bubbles: true }));
-
-                    // 5. Trigger Native Send
-                    setTimeout(() => {
-                        const sendBtn = document.querySelector(
-                            'button[aria-label*="Send"], [data-testid*="send"], .send-button, [aria-label="Send prompt"]'
-                        );
-                        if (sendBtn) {
-                            sendBtn.click();
-                            console.log("Privacy Guard: Redacted message sent.");
-                        }
-                    }, 250); 
+                    await clickSendWhenReady();
+                    busy = false;
                 });
             } else {
-                // Recovery: Put back what we had
-                inputBox.focus();
-                document.execCommand('selectAll', false, null);
-                document.execCommand('insertText', false, rawText);
+                // Server unreachable: put the user's text back untouched (nothing is sent).
+                setText(inputBox, rawText);
                 inputBox.dispatchEvent(new Event('input', { bubbles: true }));
+                busy = false;
             }
         });
     });
