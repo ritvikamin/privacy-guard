@@ -1,0 +1,154 @@
+{
+  "label": "bert-large-v2",
+  "engine": "bert",
+  "load_seconds": 2.79,
+  "rss_mb_after_run": 1584,
+  "metrics": {
+    "n_cases": 76,
+    "n_pii": 85,
+    "recall": 95.3,
+    "precision": 98.8,
+    "f1": 97.0,
+    "recall_names_places_orgs": 90.0,
+    "recall_structured": 100.0,
+    "recall_by_type": {
+      "CREDIT_CARD": 100.0,
+      "EMAIL_ADDRESS": 100.0,
+      "IN_AADHAAR": 100.0,
+      "IP_ADDRESS": 100.0,
+      "LOCATION": 100.0,
+      "ORG": 80.0,
+      "PAN_CARD": 100.0,
+      "PERSON": 87.5,
+      "PHONE_NUMBER": 100.0,
+      "SECRET_TOKEN": 100.0,
+      "URI_RESOURCE": 100.0
+    },
+    "type_accuracy": 97.5,
+    "over_redaction": 9.1,
+    "perfect_cases": 93.4,
+    "latency_ms": {
+      "mean": 109.67,
+      "p50": 104.62,
+      "p95": 184.54
+    }
+  },
+  "failures": [
+    {
+      "id": "name-07",
+      "leaks": [
+        {
+          "text": "ritvik",
+          "type": "PERSON",
+          "left": [
+            "ritvik"
+          ]
+        }
+      ],
+      "tags": [],
+      "keep_removed": [],
+      "n_pii": 1,
+      "n_keep": 0,
+      "types": [
+        "PERSON"
+      ],
+      "leaked_types": [
+        "PERSON"
+      ]
+    },
+    {
+      "id": "name-08",
+      "leaks": [
+        {
+          "text": "arjun",
+          "type": "PERSON",
+          "left": [
+            "arjun"
+          ]
+        }
+      ],
+      "tags": [],
+      "keep_removed": [],
+      "n_pii": 1,
+      "n_keep": 0,
+      "types": [
+        "PERSON"
+      ],
+      "leaked_types": [
+        "PERSON"
+      ]
+    },
+    {
+      "id": "org-04",
+      "leaks": [
+        {
+          "text": "VIT Vellore",
+          "type": "ORG",
+          "left": [
+            "VIT",
+            "Vellore"
+          ]
+        }
+      ],
+      "tags": [],
+      "keep_removed": [],
+      "n_pii": 1,
+      "n_keep": 0,
+      "types": [
+        "ORG"
+      ],
+      "leaked_types": [
+        "ORG"
+      ]
+    },
+    {
+      "id": "mixed-01",
+      "leaks": [
+        {
+          "text": "Priya",
+          "type": "PERSON",
+          "left": [
+            "Priya"
+          ]
+        }
+      ],
+      "tags": [
+        {
+          "tag": "<PHONE_NUMBER_1>",
+          "value": "9876543210",
+          "status": "correct",
+          "type_ok": true
+        }
+      ],
+      "keep_removed": [],
+      "n_pii": 2,
+      "n_keep": 0,
+      "types": [
+        "PERSON",
+        "PHONE_NUMBER"
+      ],
+      "leaked_types": [
+        "PERSON"
+      ]
+    },
+    {
+      "id": "clean-03",
+      "leaks": [],
+      "tags": [
+        {
+          "tag": "<ORG_1>",
+          "value": "React",
+          "status": "wrong",
+          "type_ok": null
+        }
+      ],
+      "keep_removed": [
+        "React"
+      ],
+      "n_pii": 0,
+      "n_keep": 3,
+      "types": [],
+      "leaked_types": []
+    }
+  ]
+}

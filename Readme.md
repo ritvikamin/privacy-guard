@@ -18,8 +18,8 @@ Privacy Guard uses a **Client-Sidecar** architecture to ensure your data stays o
 
 1.  **Interception:** The Chrome Extension watches for input events on `chatgpt.com` and `gemini.google.com`.
 2.  **Hybrid Engine:** The text is sent to a local **FastAPI** backend that runs:
-    * **NLP Layer:** A `BERT-large-cased` model fine-tuned for Named Entity Recognition (NER) to detect names and locations.
-    * **Regex Layer:** High-speed pattern matching for structured data like **IP Addresses**, **Aadhaar**, and **PAN cards**.
+    * **NLP Layer:** A `BERT-large-cased` model fine-tuned for Named Entity Recognition (NER) to detect names, locations and organisations.
+    * **Regex Layer:** High-speed pattern matching for structured data like **IP addresses**, **Aadhaar** (Verhoeff-checked), **cards** (Luhn-checked) and **PAN**.
 3.  **Redaction:** Sensitive data is replaced with consistent, session-stable tags (e.g., `<PERSON_1>`, `<IP_ADDRESS_1>`).
 4.  **Vaulting:** The original data is stored in a local session vault, allowing you to "Reveal" the original values in the browser UI without the LLM ever seeing them.
 
@@ -37,39 +37,61 @@ Privacy Guard uses a **Client-Sidecar** architecture to ensure your data stays o
 ---
 
 ## Supported PII Types
-The engine currently supports **9 core categories**:
-* **Identity:** Person Names, Locations, Email Addresses, Phone Numbers.
-* **Finance/Gov:** Indian Aadhaar Cards, PAN Cards.
-* **Technical:** IP Addresses, Secret Tokens/API Keys, URI Resources.
+**11 categories**:
+* **Identity:** Person, Location, Organisation (redacted when unsure), Email, Phone (mobile and landline).
+* **Finance/Gov:** Credit/debit cards (Luhn), Aadhaar (Verhoeff), PAN.
+* **Technical:** IP addresses, secret tokens / API keys (incl. JWT, AWS, GitHub), URI resources.
+
+Policy: when unsure, redact. A leaked name costs more than an extra tag.
+
+---
+
+## Measured Accuracy
+Run on 76 hand-written cases (85 PII strings) with `backend/eval`:
+
+| | Regex only | BERT-large + regex |
+| :--- | :--- | :--- |
+| Recall | 52.9% | **95.3%** |
+| Precision | 100% | 98.8% |
+| Names/places/orgs recall | 0% | 90.0% |
+| Mean latency per prompt | 0.07 ms | ~110 ms |
+| Memory | 18 MB | ~1.6 GB |
+
+Known gaps: lowercase names, names in code comments, library names flagged as ORG. See `roadmap.md`.
 
 ---
 
 ## Getting Started
 
-### 1. Setup Backend (The Engine)
-It is highly recommended to use a virtual environment to keep dependencies isolated.
-
+### 1. Start the backend
 ```bash
-# Navigate to backend folder
 cd backend
-
-# Create and activate virtual environment
 python -m venv venv
 # Windows: venv\Scripts\activate | Mac/Linux: source venv/bin/activate
-
-# Install dependencies
 pip install -r requirements.txt
+python -m uvicorn main:app --reload
 ```
-### 2. Install Extension
-* Open Chrome and navigate to `chrome://extensions/`.
-* Enable **Developer mode** (toggle in the top right corner).
-* Click **Load unpacked** and select the `extension/` folder from this repository.
-* **Critical Step:** Once your FastAPI server is running, go back to the extensions page and click the **Reload icon (↻)** on the Privacy Guard card. This ensures the extension connects to the local backend properly.
+The first run downloads the BERT model (~1.3 GB). Wait until the server says it is running.
 
-### 3. Usage & Activation
-* Navigate to [ChatGPT](https://chatgpt.com) or [Gemini](https://gemini.google.com).
-* **Refresh the page (F5):** The extension needs a fresh page load to inject the interceptor scripts into the chat interface.
-* Start typing! Any detected PII will be redacted before it leaves your browser. Check the extension popup to see your **Session Vault** in action.
+### 2. Install the extension
+* Open `chrome://extensions/`, enable **Developer mode**.
+* **Load unpacked** and select the `extension/` folder.
+* Open ChatGPT or Gemini and refresh the page (F5).
+* Type a prompt and send it (Enter or the Send button). The popup shows status, a per-type breakdown and the vault.
 
-# Start the FastAPI server
-uvicorn main:app --reload
+### 3. Run tests and evaluation
+```bash
+cd backend
+pip install pytest "httpx<0.28"
+python -m pytest tests
+python -m eval.run_eval --engine regex      # fast
+python -m eval.run_eval --engine bert --label my-run
+```
+
+## Project Layout
+```
+extension/   Chrome MV3 extension (content/interceptor.js, background.js, popup/)
+backend/     FastAPI server: engine.py (regex + BERT), validators.py, main.py
+backend/tests/  unit tests      backend/eval/  accuracy + latency harness
+roadmap.md   what is done and what is next (ONNX)
+```

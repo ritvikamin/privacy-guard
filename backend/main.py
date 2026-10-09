@@ -5,12 +5,14 @@ from engine import PrivacyEngine
 
 app = FastAPI()
 
-# Enable CORS so your extension can talk to this server
+# CORS: only Chrome extensions may read this server's responses, not arbitrary websites.
+# (The extension's own calls from background.js / the popup do not even need CORS, because
+# extensions are exempt for hosts listed in host_permissions. Chrome extension IDs are 32 letters a-p.)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origin_regex=r"^chrome-extension://[a-p]{32}$",
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 engine = PrivacyEngine()
@@ -20,9 +22,9 @@ class RedactRequest(BaseModel):
     text: str
     # Global state passed from the browser
     counts: dict = {
-        "PERSON": 0, "LOCATION": 0, "EMAIL_ADDRESS": 0, 
+        "PERSON": 0, "ORG": 0, "LOCATION": 0, "CREDIT_CARD": 0, "EMAIL_ADDRESS": 0, 
         "PHONE_NUMBER": 0, "PAN_CARD": 0, "IN_AADHAAR": 0, 
-        "URI_RESOURCE": 0, "SECRET_TOKEN": 0
+        "URI_RESOURCE": 0, "SECRET_TOKEN": 0, "IP_ADDRESS": 0
     }
     # This is the key to cross-bubble consistency
     vault: dict = {}
